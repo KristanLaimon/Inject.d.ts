@@ -14,7 +14,7 @@ Inject.d.ts provides global TypeScript declaration packages directly, eliminatin
 4. Run **Download Types Package** from the view title or command palette to add a package such as `@types/lodash`, `@types/express`, or `@types/bun@latest`, or anything you want to load globally!
 5. Expand a package item to read its `.d.ts` files, use **Change Types Package Version** to install a different version, or **Delete Types Package** to remove downloaded packages and hide bundled packages.
 
-![Inject.d.ts demo](.github/demo.gif)
+![Inject.d.ts demo](https://raw.githubusercontent.com/KristanLaimon/Inject.d.ts/main/.github/demo.gif)
 _Demo: Installing @types/bun for script usage without needing to `npm install` it and no /node_modules_
 
 ## Why?
@@ -41,5 +41,4 @@ Do we need to npm install typescript types ".d.ts" everytime we wanna use `Types
 - Downloading packages requires network access to the npm registry.
 - This is for **editor IntelliSense and type checking inside VS Code-compatible editors**. _It does not change runtime behavior_.
 - Project-local `tsconfig.json` settings can still affect how TypeScript reports conflicts between DOM, Node, Bun, and other global declarations.
-
 

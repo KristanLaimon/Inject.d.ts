@@ -1,5 +1,6 @@
 .vscode/**
 .vscode-test/**
+.github/**
 out/**
 node_modules/**
 !node_modules/.pnpm/
@@ -22,8 +23,12 @@ node_modules/**
 !node_modules/undici-types/**
 !node_modules/yallist/**
 src/**
+.artifacts/**
 .gitignore
 .yarnrc
+pnpm-lock.yaml
+pnpm-workspace.yaml
+scripts/**
 esbuild.js
 vsc-extension-quickstart.md
 **/tsconfig.json
