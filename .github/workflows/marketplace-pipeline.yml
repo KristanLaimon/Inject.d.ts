@@ -56,7 +56,9 @@ jobs:
           node scripts/prepare-tsserver-plugin-package.mjs
 
       - name: Package VSIX
-        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --no-prepublish --out .artifacts/inject-d-ts.vsix
+        env:
+          INJECT_D_TS_SKIP_PREPUBLISH: '1'
+        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --out .artifacts/inject-d-ts.vsix
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
@@ -124,7 +126,9 @@ jobs:
           node scripts/prepare-tsserver-plugin-package.mjs
 
       - name: Package VSIX
-        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --no-prepublish --out .artifacts/inject-d-ts.vsix
+        env:
+          INJECT_D_TS_SKIP_PREPUBLISH: '1'
+        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --out .artifacts/inject-d-ts.vsix
 
       - name: Publish to Visual Studio Marketplace
         env:

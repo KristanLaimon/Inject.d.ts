@@ -124,7 +124,7 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run package",
+    "vscode:prepublish": "node scripts/vscode-prepublish.mjs",
     "compile": "pnpm run check-types && pnpm run lint && bun esbuild.js && pnpm run prepare-tsserver-plugin",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "bun esbuild.js --watch",
