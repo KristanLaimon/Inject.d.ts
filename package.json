@@ -1,5 +1,6 @@
 {
   "name": "inject-d-ts",
+  "publisher": "KristanLaimon",
   "displayName": "Inject.d.ts",
   "description": "Zero-config TypeScript IntelliSense for projects and loose scripts without per-project type installs.",
   "version": "0.0.2",

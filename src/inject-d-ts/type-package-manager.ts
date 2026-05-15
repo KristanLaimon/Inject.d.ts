@@ -33,7 +33,7 @@ export class TypePackageManager {
 
 	async activate() {
 		await this.ensurePackageRoot();
-		await this.refreshTypeManifest({ restartTsServer: true });
+		await this.refreshTypeManifest({ reloadProjects: true, restartTsServer: true });
 	}
 
 	async runCommand(label: string, action: () => Promise<void>) {
@@ -67,7 +67,7 @@ export class TypePackageManager {
 		return packages.sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	async refreshTypeManifest(options: { restartTsServer?: boolean } = {}) {
+	async refreshTypeManifest(options: { reloadProjects?: boolean; restartTsServer?: boolean } = {}) {
 		await this.ensurePackageRoot();
 		const packages = await this.listPackages();
 		const manifest: Manifest = {
@@ -81,8 +81,15 @@ export class TypePackageManager {
 		await fs.promises.mkdir(path.dirname(this.manifestPath), { recursive: true });
 		await fs.promises.writeFile(this.manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
 		await this.configureTypeScriptPlugin();
+		if (options.reloadProjects) {
+			await this.reloadTypeScriptProjects();
+		}
 		if (options.restartTsServer) {
 			await this.restartTypeScriptServer();
+			await this.configureTypeScriptPlugin();
+			if (options.reloadProjects) {
+				await this.reloadTypeScriptProjects();
+			}
 		}
 	}
 
@@ -112,8 +119,7 @@ export class TypePackageManager {
 			},
 		);
 
-		await this.refreshTypeManifest();
-		await this.restartTypeScriptServer();
+		await this.refreshTypeManifest({ reloadProjects: true, restartTsServer: true });
 		vscode.window.showInformationMessage(`Downloaded ${packageSpec}.`);
 	}
 
@@ -152,8 +158,7 @@ export class TypePackageManager {
 			},
 		);
 
-		await this.refreshTypeManifest();
-		await this.restartTypeScriptServer();
+		await this.refreshTypeManifest({ reloadProjects: true, restartTsServer: true });
 		vscode.window.showInformationMessage(`Installed ${packageSpec}.`);
 	}
 
@@ -189,8 +194,7 @@ export class TypePackageManager {
 			},
 		);
 
-		await this.refreshTypeManifest();
-		await this.restartTypeScriptServer();
+		await this.refreshTypeManifest({ reloadProjects: true, restartTsServer: true });
 		vscode.window.showInformationMessage(`Deleted ${selected.name}.`);
 	}
 
@@ -229,6 +233,14 @@ export class TypePackageManager {
 			await vscode.commands.executeCommand('typescript.restartTsServer');
 		} catch {
 			// No active TS server yet.
+		}
+	}
+
+	private async reloadTypeScriptProjects() {
+		try {
+			await vscode.commands.executeCommand('typescript.reloadProjects');
+		} catch {
+			// No active TS project yet.
 		}
 	}
 

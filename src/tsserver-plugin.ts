@@ -5,6 +5,16 @@ type LanguageServiceInfo = {
 	config: unknown;
 	languageService: unknown;
 	languageServiceHost?: LanguageServiceHost;
+	project?: {
+		refreshDiagnostics?: () => void;
+		projectService?: {
+			applyChangesInOpenFiles?: (
+				openFiles: unknown[],
+				changedFiles: unknown[],
+				closedFiles: unknown[],
+			) => void;
+		};
+	};
 };
 
 type PluginConfiguration = {
@@ -32,8 +42,11 @@ type CompilerOptions = {
 };
 
 function init() {
+	let project: LanguageServiceInfo['project'];
+
 	return {
 		create(info: LanguageServiceInfo) {
+			project = info.project;
 			configuredManifestPath = readManifestPath(info.config);
 			injectCompilationSettings(info.languageServiceHost);
 			injectManifestFiles(info.languageServiceHost);
@@ -41,6 +54,8 @@ function init() {
 		},
 		onConfigurationChanged(configuration: PluginConfiguration) {
 			configuredManifestPath = readManifestPath(configuration);
+			project?.projectService?.applyChangesInOpenFiles?.([], [], []);
+			project?.refreshDiagnostics?.();
 		},
 		getExternalFiles() {
 			return readManifestFiles(configuredManifestPath);
@@ -68,8 +83,8 @@ function injectCompilationSettings(host: LanguageServiceHost | undefined) {
 			const existingTypeRoots = settings.typeRoots ?? defaultTypeRoots(host.getCurrentDirectory?.());
 			nextSettings.typeRoots = unique([...existingTypeRoots, ...manifestTypeRoots]);
 		}
-		if (settings.types && manifestTypes.length > 0) {
-			nextSettings.types = unique([...settings.types, ...manifestTypes]);
+		if (manifestTypes.length > 0) {
+			nextSettings.types = unique([...(settings.types ?? []), ...manifestTypes]);
 		}
 
 		return nextSettings;

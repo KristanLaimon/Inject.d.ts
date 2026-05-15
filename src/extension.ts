@@ -7,7 +7,7 @@ import { TypePackageItem } from './inject-d-ts/tree-items';
 
 let activeExtension: vscode.Disposable | undefined;
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 	if (activeExtension) {
 		context.subscriptions.push(activeExtension);
 		return;
@@ -45,7 +45,10 @@ export function activate(context: vscode.ExtensionContext) {
 	disposables.push(
 		registerCommand('inject-d-ts.refresh', async () => {
 			await withLoadingMessage(async () => {
-				await manager.runCommand('Refresh global types', async () => manager.refreshTypeManifest({ restartTsServer: true }));
+				await manager.runCommand('Refresh global types', async () => manager.refreshTypeManifest({
+					reloadProjects: true,
+					restartTsServer: true,
+				}));
 			});
 			provider.refresh();
 		}),
@@ -72,7 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 	);
 
-	void withLoadingMessage(async () => {
+	await withLoadingMessage(async () => {
 		await manager.runCommand('Activate Inject.d.ts', async () => manager.activate());
 		provider.refresh();
 	});
