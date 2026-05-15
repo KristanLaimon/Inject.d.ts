@@ -12,6 +12,8 @@ export type Manifest = {
 	version: 1;
 	generatedAt: string;
 	files: string[];
+	typeRoots: string[];
+	types: string[];
 };
 
 export type DisabledBundledPackages = {

@@ -103,23 +103,6 @@
           "when": "view == inject-d-ts.packages && viewItem =~ /TypePackage$/",
           "group": "inline"
         }
-      ],
-      "commandPalette": [
-        {
-          "command": "inject-d-ts.downloadPackage"
-        },
-        {
-          "command": "inject-d-ts.editPackage"
-        },
-        {
-          "command": "inject-d-ts.deletePackage"
-        },
-        {
-          "command": "inject-d-ts.refresh"
-        },
-        {
-          "command": "inject-d-ts.openStorage"
-        }
       ]
     }
   },

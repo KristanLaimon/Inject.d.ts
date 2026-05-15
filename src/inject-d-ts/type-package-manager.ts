@@ -33,8 +33,7 @@ export class TypePackageManager {
 
 	async activate() {
 		await this.ensurePackageRoot();
-		await this.refreshTypeManifest();
-		await this.configureTypeScriptPlugin();
+		await this.refreshTypeManifest({ restartTsServer: true });
 	}
 
 	async runCommand(label: string, action: () => Promise<void>) {
@@ -68,18 +67,23 @@ export class TypePackageManager {
 		return packages.sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	async refreshTypeManifest() {
+	async refreshTypeManifest(options: { restartTsServer?: boolean } = {}) {
 		await this.ensurePackageRoot();
 		const packages = await this.listPackages();
 		const manifest: Manifest = {
 			version: 1,
 			generatedAt: new Date().toISOString(),
 			files: this.flattenPackageFiles(packages),
+			typeRoots: this.flattenPackageTypeRoots(packages),
+			types: this.flattenPackageTypeNames(packages),
 		};
 
 		await fs.promises.mkdir(path.dirname(this.manifestPath), { recursive: true });
 		await fs.promises.writeFile(this.manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
 		await this.configureTypeScriptPlugin();
+		if (options.restartTsServer) {
+			await this.restartTypeScriptServer();
+		}
 	}
 
 	async downloadPackage() {
@@ -360,6 +364,55 @@ export class TypePackageManager {
 		}
 
 		return files;
+	}
+
+	private flattenPackageTypeRoots(packages: TypePackage[]): string[] {
+		const roots = new Set<string>();
+		const seenPackages = new Set<string>();
+
+		const visit = (pkg: TypePackage) => {
+			const key = pkg.location.toLowerCase();
+			if (seenPackages.has(key)) {
+				return;
+			}
+			seenPackages.add(key);
+			if (!pkg.dependency) {
+				roots.add(this.typeRootForPackage(pkg.name, pkg.location));
+			}
+			for (const dependency of pkg.dependencies) {
+				visit(dependency);
+			}
+		};
+
+		for (const pkg of packages) {
+			visit(pkg);
+		}
+
+		return [...roots].sort((a, b) => a.localeCompare(b));
+	}
+
+	private flattenPackageTypeNames(packages: TypePackage[]): string[] {
+		const names = new Set<string>();
+
+		for (const pkg of packages) {
+			if (!pkg.dependency) {
+				names.add(this.typeNameForPackage(pkg.name));
+			}
+		}
+
+		return [...names].sort((a, b) => a.localeCompare(b));
+	}
+
+	private typeRootForPackage(packageName: string, packageLocation: string): string {
+		if (packageName.startsWith('@types/')) {
+			return path.dirname(packageLocation);
+		}
+
+		return packageName.startsWith('@') ? path.dirname(path.dirname(packageLocation)) : path.dirname(packageLocation);
+	}
+
+	private typeNameForPackage(packageName: string): string {
+		return packageName.startsWith('@types/') ? packageName.slice('@types/'.length) : packageName;
 	}
 
 	private async packageInfosFromLocations(
