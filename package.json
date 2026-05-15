@@ -3,7 +3,7 @@
   "publisher": "KristanLaimon",
   "displayName": "Inject.d.ts",
   "description": "Zero-config TypeScript IntelliSense for projects and loose scripts without per-project type installs.",
-  "version": "0.0.15",
+  "version": "0.0.18",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",

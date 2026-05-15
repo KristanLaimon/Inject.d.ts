@@ -74,18 +74,20 @@ function injectCompilationSettings(host: LanguageServiceHost | undefined) {
 		const manifest = readManifest(configuredManifestPath);
 		const manifestTypeRoots = filterExistingDirectories(manifest.typeRoots);
 		const manifestTypes = filterStrings(manifest.types);
+		
 		if (manifestTypeRoots.length === 0 && manifestTypes.length === 0) {
 			return settings;
 		}
 
 		const nextSettings = { ...settings };
-		if (manifestTypeRoots.length > 0 && settings.typeRoots === undefined) {
-			const existingTypeRoots = settings.typeRoots ?? defaultTypeRoots(host.getCurrentDirectory?.());
-			nextSettings.typeRoots = unique([...existingTypeRoots, ...manifestTypeRoots]);
-		}
-		if (manifestTypes.length > 0 && settings.types === undefined) {
-			nextSettings.types = unique([...(settings.types ?? []), ...manifestTypes]);
-		}
+		
+		// Infiltrate typeRoots
+		const existingTypeRoots = settings.typeRoots ?? [];
+		nextSettings.typeRoots = unique([...existingTypeRoots, ...manifestTypeRoots]);
+
+		// Infiltrate types
+		const existingTypes = settings.types ?? [];
+		nextSettings.types = unique([...existingTypes, ...manifestTypes]);
 
 		return nextSettings;
 	};

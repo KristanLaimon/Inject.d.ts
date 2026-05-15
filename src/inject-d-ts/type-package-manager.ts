@@ -48,10 +48,12 @@ export class TypePackageManager {
 
 	async listPackages(): Promise<TypePackage[]> {
 		const disabledBundledPackageNames = await this.readDisabledBundledPackageNames();
-		const bundledPackages = (await this.discoverBundledDefaultPackages()).filter(
-			(pkg) => !disabledBundledPackageNames.has(pkg.name.toLowerCase()),
-		);
 		const managedPackages = await this.discoverManagedPackages();
+		const managedNames = new Set(managedPackages.map(p => p.name.toLowerCase()));
+
+		const bundledPackages = (await this.discoverBundledDefaultPackages()).filter(
+			(pkg) => !disabledBundledPackageNames.has(pkg.name.toLowerCase()) && !managedNames.has(pkg.name.toLowerCase()),
+		);
 		const seen = new Set<string>();
 		const packages: TypePackage[] = [];
 
@@ -388,9 +390,14 @@ export class TypePackageManager {
 				return;
 			}
 			seenPackages.add(key);
-			if (!pkg.dependency) {
-				roots.add(this.typeRootForPackage(pkg.name, pkg.location));
-			}
+
+			// For TypeScript to find @types/node, the typeRoot must be the directory CONTAINING '@types'
+			// or the '@types' directory itself if we want it to be a primary lookup.
+			// Actually, standard behavior is that typeRoots points to a folder that CONTAINS type packages.
+			// So if we have storage/node_modules/@types/node, typeRoots should include storage/node_modules/@types
+			const typeRoot = this.typeRootForPackage(pkg.name, pkg.location);
+			roots.add(typeRoot);
+
 			for (const dependency of pkg.dependencies) {
 				visit(dependency);
 			}
@@ -405,11 +412,24 @@ export class TypePackageManager {
 
 	private flattenPackageTypeNames(packages: TypePackage[]): string[] {
 		const names = new Set<string>();
+		const seenPackages = new Set<string>();
+
+		const visit = (pkg: TypePackage) => {
+			const key = pkg.location.toLowerCase();
+			if (seenPackages.has(key)) {
+				return;
+			}
+			seenPackages.add(key);
+
+			names.add(this.typeNameForPackage(pkg.name));
+
+			for (const dependency of pkg.dependencies) {
+				visit(dependency);
+			}
+		};
 
 		for (const pkg of packages) {
-			if (!pkg.dependency) {
-				names.add(this.typeNameForPackage(pkg.name));
-			}
+			visit(pkg);
 		}
 
 		return [...names].sort((a, b) => a.localeCompare(b));
@@ -420,7 +440,7 @@ export class TypePackageManager {
 			return path.dirname(packageLocation);
 		}
 
-		return packageName.startsWith('@') ? path.dirname(path.dirname(packageLocation)) : path.dirname(packageLocation);
+		return path.dirname(packageLocation);
 	}
 
 	private typeNameForPackage(packageName: string): string {
