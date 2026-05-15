@@ -52,7 +52,8 @@ jobs:
       - name: Install production dependencies for VSCE
         run: |
           rm -rf node_modules
-          npm install --omit=dev --ignore-scripts
+          pnpm install --prod --config.node-linker=hoisted
+          pnpm run prepare-tsserver-plugin
 
       - name: Package VSIX
         env:
@@ -121,7 +122,8 @@ jobs:
       - name: Install production dependencies for VSCE
         run: |
           rm -rf node_modules
-          npm install --omit=dev --ignore-scripts
+          pnpm install --prod --config.node-linker=hoisted
+          pnpm run prepare-tsserver-plugin
 
       - name: Package VSIX
         env:

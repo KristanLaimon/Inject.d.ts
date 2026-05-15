@@ -4,11 +4,6 @@
 .pnpm-store/**
 out/**
 node_modules/**
-!node_modules/.pnpm/
-!node_modules/.pnpm/@types+node@*/**
-!node_modules/.pnpm/bun-types@*/**
-!node_modules/.pnpm/inject-d-ts-tsserver-plugin@*/**
-!node_modules/.pnpm/undici-types@*/**
 !node_modules/@isaacs/**
 !node_modules/@pkgjs/**
 !node_modules/@types/
@@ -35,5 +30,5 @@ vsc-extension-quickstart.md
 **/tsconfig.json
 **/eslint.config.mjs
 **/*.map
-**/*.ts
+src/**/*.ts
 **/.vscode-test.*
