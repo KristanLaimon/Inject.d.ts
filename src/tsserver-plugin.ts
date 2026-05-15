@@ -7,6 +7,7 @@ type LanguageServiceInfo = {
 	languageService: unknown;
 	languageServiceHost?: LanguageServiceHost;
 	project?: {
+		projectName?: string;
 		refreshDiagnostics?: () => void;
 		projectService?: {
 			applyChangesInOpenFiles?: (
