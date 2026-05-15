@@ -58,7 +58,7 @@ jobs:
       - name: Package VSIX
         env:
           INJECT_D_TS_SKIP_PREPUBLISH: '1'
-        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --out .artifacts/inject-d-ts.vsix
+        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --no-dependencies --out .artifacts/inject-d-ts.vsix
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
@@ -128,7 +128,7 @@ jobs:
       - name: Package VSIX
         env:
           INJECT_D_TS_SKIP_PREPUBLISH: '1'
-        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --out .artifacts/inject-d-ts.vsix
+        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --no-dependencies --out .artifacts/inject-d-ts.vsix
 
       - name: Publish to Visual Studio Marketplace
         env:
