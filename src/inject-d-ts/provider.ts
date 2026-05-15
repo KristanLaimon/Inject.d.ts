@@ -19,7 +19,10 @@ export class TypePackagesProvider implements vscode.TreeDataProvider<TypePackage
 
 	async getChildren(element?: TypePackageItem | TypeFileItem): Promise<Array<TypePackageItem | TypeFileItem>> {
 		if (element instanceof TypePackageItem) {
-			return element.pkg.typeFiles.map((file) => new TypeFileItem(element.pkg, file));
+			return [
+				...element.pkg.dependencies.map((dependency) => new TypePackageItem(dependency)),
+				...element.pkg.typeFiles.map((file) => new TypeFileItem(element.pkg, file)),
+			];
 		}
 
 		if (element instanceof TypeFileItem) {

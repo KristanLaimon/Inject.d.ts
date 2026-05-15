@@ -1,0 +1,121 @@
+name: Marketplace Pipeline
+
+on:
+  pull_request:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+concurrency:
+  group: marketplace-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare manifest for CI packaging
+        run: node scripts/prepare-marketplace-manifest.mjs --allow-placeholder-publisher
+
+      - name: Run extension tests
+        run: xvfb-run -a pnpm test
+
+      - name: Build production bundle
+        run: pnpm run package
+
+      - name: Package VSIX
+        run: pnpm dlx @vscode/vsce package --out .artifacts/inject-d-ts.vsix
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: inject-d-ts-vsix
+          path: .artifacts/inject-d-ts.vsix
+
+  publish:
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate publish configuration
+        env:
+          MARKETPLACE_PUBLISHER: ${{ secrets.MARKETPLACE_PUBLISHER }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          test -n "$MARKETPLACE_PUBLISHER" || { echo "::error::Missing secret MARKETPLACE_PUBLISHER"; exit 1; }
+          test -n "$VSCE_PAT" || { echo "::error::Missing secret VSCE_PAT"; exit 1; }
+
+      - name: Prepare manifest for publish
+        env:
+          MARKETPLACE_PUBLISHER: ${{ secrets.MARKETPLACE_PUBLISHER }}
+          MARKETPLACE_REPOSITORY_URL: ${{ vars.MARKETPLACE_REPOSITORY_URL }}
+          MARKETPLACE_VERSION_STRATEGY: run-number
+        run: node scripts/prepare-marketplace-manifest.mjs
+
+      - name: Build production bundle
+        run: pnpm run package
+
+      - name: Package VSIX
+        run: pnpm dlx @vscode/vsce package --out .artifacts/inject-d-ts.vsix
+
+      - name: Publish to Visual Studio Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: pnpm dlx @vscode/vsce publish --packagePath .artifacts/inject-d-ts.vsix -p "$VSCE_PAT"
+
+      - name: Publish to Open VSX
+        if: ${{ secrets.OVSX_PAT != '' }}
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: pnpm dlx ovsx publish .artifacts/inject-d-ts.vsix -p "$OVSX_PAT"

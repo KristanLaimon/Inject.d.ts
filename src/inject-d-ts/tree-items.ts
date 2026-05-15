@@ -6,10 +6,11 @@ import type { TypePackage } from './types';
 export class TypePackageItem extends vscode.TreeItem {
 	constructor(readonly pkg: TypePackage) {
 		super(pkg.name, vscode.TreeItemCollapsibleState.Collapsed);
-		this.description = `${pkg.version}${pkg.bundled ? ' bundled' : ''}`;
+		const source = pkg.bundled ? ' bundled' : pkg.dependency ? ' dependency' : '';
+		this.description = `${pkg.version}${source}`;
 		this.tooltip = pkg.location;
-		this.contextValue = pkg.bundled ? 'bundledTypePackage' : 'managedTypePackage';
-		this.iconPath = new vscode.ThemeIcon(pkg.bundled ? 'package' : 'archive');
+		this.contextValue = pkg.dependency ? 'dependency' : pkg.bundled ? 'bundledTypePackage' : 'managedTypePackage';
+		this.iconPath = new vscode.ThemeIcon(pkg.bundled ? 'package' : pkg.dependency ? 'library' : 'archive');
 	}
 }
 

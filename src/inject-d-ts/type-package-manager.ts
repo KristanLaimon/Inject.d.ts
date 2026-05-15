@@ -74,7 +74,7 @@ export class TypePackageManager {
 		const manifest: Manifest = {
 			version: 1,
 			generatedAt: new Date().toISOString(),
-			files: packages.flatMap((pkg) => pkg.typeFiles),
+			files: this.flattenPackageFiles(packages),
 		};
 
 		await fs.promises.mkdir(path.dirname(this.manifestPath), { recursive: true });
@@ -85,7 +85,7 @@ export class TypePackageManager {
 	async downloadPackage() {
 		const packageSpec = await vscode.window.showInputBox({
 			title: 'Download types package',
-			prompt: 'Package name or spec from npm, for example @types/node, bun-types, @types/lodash@latest',
+			prompt: 'Package name or spec from npm, for example @types/node, @types/bun, @types/lodash@latest',
 			placeHolder: '@types/node',
 			validateInput: (value) => this.validatePackageSpec(value),
 		});
@@ -102,7 +102,9 @@ export class TypePackageManager {
 				cancellable: false,
 			},
 			async () => {
-				await this.installPackageFromRegistry(packageSpec.trim(), new Set());
+				await this.installPackageFromRegistry(packageSpec.trim(), new Set(), {
+					root: true,
+				});
 			},
 		);
 
@@ -139,6 +141,7 @@ export class TypePackageManager {
 			},
 			async () => {
 				await this.installPackageFromRegistry(packageSpec.trim(), new Set(), {
+					root: true,
 					replaceExistingRoot: true,
 				});
 				await this.enableBundledPackage(spec.name);
@@ -273,11 +276,12 @@ export class TypePackageManager {
 	private async discoverBundledDefaultPackages(): Promise<TypePackage[]> {
 		const candidates = [
 			...await this.findBundledPackageLocations('@types/node'),
-			...await this.findBundledPackageLocations('bun-types'),
-			...await this.findBundledPackageLocations('@types/deno'),
 		];
 
-		return this.packageInfosFromLocations(candidates, true);
+		return this.packageInfosFromLocations(candidates, {
+			bundled: true,
+			dependency: false,
+		});
 	}
 
 	private async findBundledPackageLocations(packageName: string): Promise<string[]> {
@@ -306,37 +310,63 @@ export class TypePackageManager {
 	}
 
 	private async discoverManagedPackages(): Promise<TypePackage[]> {
-		const nodeModules = path.join(this.packageRoot, 'node_modules');
-		const locations: string[] = [];
+		const packageJsonPath = path.join(this.packageRoot, 'package.json');
 
-		if (!fs.existsSync(nodeModules)) {
+		if (!fs.existsSync(packageJsonPath)) {
 			return [];
 		}
 
-		for (const entry of await fs.promises.readdir(nodeModules, { withFileTypes: true })) {
-			if (!entry.isDirectory() || entry.name.startsWith('.')) {
-				continue;
-			}
+		const packageJson = JSON.parse(await fs.promises.readFile(packageJsonPath, 'utf8')) as {
+			dependencies?: Record<string, string>;
+		};
+		const locations = Object.keys(packageJson.dependencies ?? {})
+			.map((packageName) => this.packageInstallLocation(packageName))
+			.filter((location) => fs.existsSync(location));
 
-			if (entry.name.startsWith('@')) {
-				const scopePath = path.join(nodeModules, entry.name);
-				for (const scopedEntry of await fs.promises.readdir(scopePath, { withFileTypes: true })) {
-					if (scopedEntry.isDirectory()) {
-						locations.push(path.join(scopePath, scopedEntry.name));
-					}
-				}
-			} else {
-				locations.push(path.join(nodeModules, entry.name));
-			}
-		}
-
-		return this.packageInfosFromLocations(locations, false);
+		return this.packageInfosFromLocations(locations, {
+			bundled: false,
+			dependency: false,
+		});
 	}
 
-	private async packageInfosFromLocations(locations: string[], bundled: boolean): Promise<TypePackage[]> {
+	private flattenPackageFiles(packages: TypePackage[]): string[] {
+		const files: string[] = [];
+		const seenPackages = new Set<string>();
+
+		const visit = (pkg: TypePackage) => {
+			const key = pkg.location.toLowerCase();
+			if (seenPackages.has(key)) {
+				return;
+			}
+			seenPackages.add(key);
+			files.push(...pkg.typeFiles);
+			for (const dependency of pkg.dependencies) {
+				visit(dependency);
+			}
+		};
+
+		for (const pkg of packages) {
+			visit(pkg);
+		}
+
+		return files;
+	}
+
+	private async packageInfosFromLocations(
+		locations: string[],
+		options: { bundled: boolean; dependency: boolean },
+		ancestors = new Set<string>(),
+	): Promise<TypePackage[]> {
 		const packages: TypePackage[] = [];
 
 		for (const location of locations) {
+			const locationKey = location.toLowerCase();
+			if (ancestors.has(locationKey)) {
+				continue;
+			}
+			const nextAncestors = new Set(ancestors);
+			nextAncestors.add(locationKey);
+
 			const packageJsonPath = path.join(location, 'package.json');
 			if (!fs.existsSync(packageJsonPath)) {
 				continue;
@@ -346,15 +376,28 @@ export class TypePackageManager {
 				const packageJson = JSON.parse(await fs.promises.readFile(packageJsonPath, 'utf8')) as {
 					name?: string;
 					version?: string;
+					dependencies?: Record<string, string>;
 				};
 				const typeFiles = await this.findTypeFiles(location);
 				if (packageJson.name && typeFiles.length > 0) {
+					const dependencies = await this.packageInfosFromLocations(
+						Object.keys(packageJson.dependencies ?? {})
+							.map((packageName) => this.packageDependencyLocation(location, packageName))
+							.filter((dependencyLocation) => fs.existsSync(dependencyLocation)),
+						{
+							bundled: false,
+							dependency: true,
+						},
+						nextAncestors,
+					);
 					packages.push({
 						name: packageJson.name,
 						version: packageJson.version ?? 'unknown',
 						location,
 						typeFiles,
-						bundled,
+						dependencies,
+						bundled: options.bundled,
+						dependency: options.dependency,
 					});
 				}
 			} catch (error) {
@@ -363,6 +406,24 @@ export class TypePackageManager {
 		}
 
 		return packages;
+	}
+
+	private packageDependencyLocation(packageLocation: string, packageName: string): string {
+		const parts = packageName.split('/');
+		let current = packageLocation;
+
+		while (true) {
+			const candidate = path.join(current, 'node_modules', ...parts);
+			if (fs.existsSync(candidate)) {
+				return candidate;
+			}
+
+			const parent = path.dirname(current);
+			if (parent === current) {
+				return this.packageInstallLocation(packageName);
+			}
+			current = parent;
+		}
 	}
 
 	private async findTypeFiles(root: string): Promise<string[]> {
@@ -392,7 +453,7 @@ export class TypePackageManager {
 	private async installPackageFromRegistry(
 		packageSpec: string,
 		visited: Set<string>,
-		options: { replaceExistingRoot?: boolean } = {},
+		options: { root?: boolean; replaceExistingRoot?: boolean } = {},
 	): Promise<void> {
 		await this.ensurePackageRoot();
 		const spec = this.parsePackageSpec(packageSpec);
@@ -409,6 +470,9 @@ export class TypePackageManager {
 		if (replacingExistingPackage) {
 			if (!options.replaceExistingRoot) {
 				this.output.appendLine(`${manifest.name} is already installed. Use Change Types Package Version to install another version.`);
+				if (options.root) {
+					await this.recordStoredDependency(manifest.name, manifest.version);
+				}
 				return;
 			}
 		}
@@ -432,7 +496,9 @@ export class TypePackageManager {
 				await fs.promises.rm(destination, { recursive: true, force: true });
 			}
 			await fs.promises.rename(extractPath, destination);
-			await this.recordStoredDependency(manifest.name, manifest.version);
+			if (options.root) {
+				await this.recordStoredDependency(manifest.name, manifest.version);
+			}
 		} finally {
 			await fs.promises.rm(tempRoot, { recursive: true, force: true });
 		}

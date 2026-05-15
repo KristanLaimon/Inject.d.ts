@@ -3,7 +3,9 @@ export type TypePackage = {
 	version: string;
 	location: string;
 	typeFiles: string[];
+	dependencies: TypePackage[];
 	bundled: boolean;
+	dependency: boolean;
 };
 
 export type Manifest = {

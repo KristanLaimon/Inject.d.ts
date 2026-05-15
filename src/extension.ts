@@ -8,23 +8,42 @@ import { TypePackageItem } from './inject-d-ts/tree-items';
 export function activate(context: vscode.ExtensionContext) {
 	const manager = new TypePackageManager(context);
 	const provider = new TypePackagesProvider(manager);
+	const treeView = vscode.window.createTreeView('inject-d-ts.packages', {
+		treeDataProvider: provider,
+	});
+	const withLoadingMessage = async (action: () => Promise<void>) => {
+		treeView.message = 'Loading inject.d.ts types...';
+		try {
+			await action();
+		} finally {
+			treeView.message = undefined;
+		}
+	};
 
 	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider('inject-d-ts.packages', provider),
+		treeView,
 		vscode.commands.registerCommand('inject-d-ts.refresh', async () => {
-			await manager.runCommand('Refresh global types', async () => manager.refreshTypeManifest());
+			await withLoadingMessage(async () => {
+				await manager.runCommand('Refresh global types', async () => manager.refreshTypeManifest());
+			});
 			provider.refresh();
 		}),
 		vscode.commands.registerCommand('inject-d-ts.downloadPackage', async () => {
-			await manager.runCommand('Download types package', async () => manager.downloadPackage());
+			await withLoadingMessage(async () => {
+				await manager.runCommand('Download types package', async () => manager.downloadPackage());
+			});
 			provider.refresh();
 		}),
 		vscode.commands.registerCommand('inject-d-ts.editPackage', async (item?: TypePackageItem) => {
-			await manager.runCommand('Edit types package', async () => manager.editPackage(item?.pkg));
+			await withLoadingMessage(async () => {
+				await manager.runCommand('Edit types package', async () => manager.editPackage(item?.pkg));
+			});
 			provider.refresh();
 		}),
 		vscode.commands.registerCommand('inject-d-ts.deletePackage', async (item?: TypePackageItem) => {
-			await manager.runCommand('Delete types package', async () => manager.deletePackage(item?.pkg));
+			await withLoadingMessage(async () => {
+				await manager.runCommand('Delete types package', async () => manager.deletePackage(item?.pkg));
+			});
 			provider.refresh();
 		}),
 		vscode.commands.registerCommand('inject-d-ts.openStorage', async () => {
@@ -32,7 +51,10 @@ export function activate(context: vscode.ExtensionContext) {
 		}),
 	);
 
-	void manager.runCommand('Activate Inject.d.ts', async () => manager.activate());
+	void withLoadingMessage(async () => {
+		await manager.runCommand('Activate Inject.d.ts', async () => manager.activate());
+		provider.refresh();
+	});
 }
 
 export function deactivate() {}
