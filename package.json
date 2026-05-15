@@ -2,7 +2,7 @@
   "name": "inject-d-ts",
   "displayName": "Inject.d.ts",
   "description": "Zero-config TypeScript IntelliSense for projects and loose scripts without per-project type installs.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
@@ -140,6 +140,7 @@
   },
   "dependencies": {
     "@types/node": "22.x",
+    "inject-d-ts-tsserver-plugin": "file:./tsserver-plugin",
     "semver": "^7.7.3",
     "tar": "^7.5.2"
   },
@@ -158,5 +159,4 @@
   },
   "packageManager": "pnpm@11.1.1",
   "private": false
-
 }
