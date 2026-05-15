@@ -1,32 +1,125 @@
 {
   "name": "inject-d-ts",
   "displayName": "Inject.d.ts",
-  "description": "Zero-config Typescript intelissense for your TS proyects (or simple script files) with no NPM install nneeded",
+  "description": "Zero-config TypeScript IntelliSense for projects and loose scripts without per-project type installs.",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.120.0",
-    "node": ">=24.14.1"
+    "vscode": "^1.115.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:inject-d-ts.packages",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
+    "typescriptServerPlugins": [
+      {
+        "name": "inject-d-ts-tsserver-plugin",
+        "enableForWorkspaceTypeScriptVersions": true
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "inject-d-ts",
+          "title": "Inject.d.ts",
+          "icon": "resources/inject-d-ts.svg"
+        }
+      ]
+    },
+    "views": {
+      "inject-d-ts": [
+        {
+          "id": "inject-d-ts.packages",
+          "name": "Global Types"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "inject-d-ts.helloWorld",
-        "title": "Hello World"
+        "command": "inject-d-ts.downloadPackage",
+        "title": "Download Types Package",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "inject-d-ts.editPackage",
+        "title": "Edit Types Package",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "inject-d-ts.deletePackage",
+        "title": "Delete Types Package",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "inject-d-ts.refresh",
+        "title": "Refresh Global Types",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "inject-d-ts.openStorage",
+        "title": "Open Types Storage",
+        "icon": "$(folder-opened)"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "inject-d-ts.downloadPackage",
+          "when": "view == inject-d-ts.packages",
+          "group": "navigation"
+        },
+        {
+          "command": "inject-d-ts.refresh",
+          "when": "view == inject-d-ts.packages",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "inject-d-ts.editPackage",
+          "when": "view == inject-d-ts.packages && viewItem =~ /TypePackage$/",
+          "group": "inline"
+        },
+        {
+          "command": "inject-d-ts.deletePackage",
+          "when": "view == inject-d-ts.packages && viewItem == managedTypePackage",
+          "group": "inline"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "inject-d-ts.downloadPackage"
+        },
+        {
+          "command": "inject-d-ts.editPackage"
+        },
+        {
+          "command": "inject-d-ts.deletePackage"
+        },
+        {
+          "command": "inject-d-ts.refresh"
+        },
+        {
+          "command": "inject-d-ts.openStorage"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "pnpm run package",
-    "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
+    "compile": "pnpm run check-types && pnpm run lint && bun esbuild.js",
     "watch": "npm-run-all -p watch:*",
-    "watch:esbuild": "node esbuild.js --watch",
+    "watch:esbuild": "bun esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
+    "package": "pnpm run check-types && pnpm run lint && bun esbuild.js --production",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
@@ -34,18 +127,27 @@
     "lint": "eslint src",
     "test": "vscode-test"
   },
+  "dependencies": {
+    "bun-types": "^1.3.3",
+    "inject-d-ts-tsserver-plugin": "file:./tsserver-plugin",
+    "semver": "^7.7.3",
+    "tar": "^7.5.2",
+    "undici-types": "~6.21.0"
+  },
   "devDependencies": {
-    "@types/vscode": "^1.120.0",
+    "@types/jest": "^30.0.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "typescript-eslint": "^8.56.1",
-    "eslint": "^9.39.3",
+    "@types/semver": "^7.7.1",
+    "@types/vscode": "^1.120.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
     "esbuild": "^0.27.3",
+    "eslint": "^9.39.3",
     "npm-run-all": "^4.1.5",
     "typescript": "^5.9.3",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "typescript-eslint": "^8.56.1"
   },
   "packageManager": "pnpm@11.1.1",
-  "private": "false"
+  "private": false
 }
