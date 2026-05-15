@@ -6,11 +6,11 @@ It is meant for VS Code and compatible forks where you often open loose `.ts`, `
 
 ## Features
 
-- Bundles `bun-types`, `@types/node`, and `undici-types` by default.
+- Bundles `bun-types`, `@types/node`, and `@types/deno` by default.
 - Injects declaration files through a TypeScript server plugin, so IntelliSense can see them in projects and loose files.
 - Adds an activity bar view named **Inject.d.ts** with a **Global Types** package list.
 - Downloads additional npm type packages into extension global storage.
-- Supports create, read, edit, and delete for downloaded packages.
+- Supports create, read, version changes, and delete for downloaded and bundled packages.
 - Does not modify the current workspace or run `npm install` / `pnpm install` inside user projects.
 
 ## Usage
@@ -19,9 +19,9 @@ It is meant for VS Code and compatible forks where you often open loose `.ts`, `
 2. Open any TypeScript or JavaScript file.
 3. Use the **Inject.d.ts** activity bar icon to inspect bundled and downloaded declaration packages.
 4. Run **Download Types Package** from the view title or command palette to add a package such as `@types/lodash`, `@types/express`, or `bun-types@latest`.
-5. Open a package item to read its `.d.ts` files, use **Edit Types Package** to modify a downloaded declaration file, or **Delete Types Package** to remove downloaded packages.
+5. Expand a package item to read its `.d.ts` files, use **Change Types Package Version** to install a different version, or **Delete Types Package** to remove downloaded packages and hide bundled packages.
 
-Bundled defaults are read-only from the delete command. Delete is intentionally not an update operation; remove a downloaded package first, then download the version you want.
+Bundled defaults can be hidden from the global type manifest. Changing a bundled package version installs the requested npm version into extension global storage and uses it instead of the bundled copy.
 
 ## How It Works
 

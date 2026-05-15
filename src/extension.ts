@@ -23,6 +23,11 @@ type Manifest = {
 	files: string[];
 };
 
+type DisabledBundledPackages = {
+	version: 1;
+	names: string[];
+};
+
 type PackageSpec = {
 	name: string;
 	selector: string;
@@ -78,12 +83,14 @@ class TypePackageManager {
 	private readonly storageRoot: string;
 	private readonly packageRoot: string;
 	private readonly manifestPath: string;
+	private readonly disabledBundledPackagesPath: string;
 	private readonly output = vscode.window.createOutputChannel('Inject.d.ts');
 
 	constructor(private readonly context: vscode.ExtensionContext) {
 		this.storageRoot = context.globalStorageUri.fsPath;
 		this.packageRoot = path.join(this.storageRoot, 'type-packages');
 		this.manifestPath = path.join(this.storageRoot, 'types-manifest.json');
+		this.disabledBundledPackagesPath = path.join(this.storageRoot, 'disabled-bundled-packages.json');
 		context.subscriptions.push(this.output);
 	}
 
@@ -104,12 +111,15 @@ class TypePackageManager {
 	}
 
 	async listPackages(): Promise<TypePackage[]> {
-		const bundledPackages = await this.discoverBundledDefaultPackages();
+		const disabledBundledPackageNames = await this.readDisabledBundledPackageNames();
+		const bundledPackages = (await this.discoverBundledDefaultPackages()).filter(
+			(pkg) => !disabledBundledPackageNames.has(pkg.name.toLowerCase()),
+		);
 		const managedPackages = await this.discoverManagedPackages();
 		const seen = new Set<string>();
 		const packages: TypePackage[] = [];
 
-		for (const pkg of [...bundledPackages, ...managedPackages]) {
+		for (const pkg of [...managedPackages, ...bundledPackages]) {
 			const key = pkg.name.toLowerCase();
 			if (seen.has(key)) {
 				continue;
@@ -165,34 +175,47 @@ class TypePackageManager {
 	}
 
 	async editPackage(pkg?: TypePackage) {
-		const selected = pkg ?? await this.pickPackage('Edit types package');
+		const selected = pkg ?? await this.pickPackage('Change types package version');
 		if (!selected) {
 			return;
 		}
 
-		const pickedFile = await vscode.window.showQuickPick(
-			selected.typeFiles.map((file) => ({
-				label: path.relative(selected.location, file),
-				description: selected.name,
-				file,
-			})),
-			{ title: `Open .d.ts from ${selected.name}` },
-		);
+		const packageSpec = await vscode.window.showInputBox({
+			title: 'Change types package version',
+			prompt: 'Enter a package version spec from npm, for example @types/node@latest, @types/node@22, or @types/node@20.11.30',
+			placeHolder: `${selected.name}@latest`,
+			value: `${selected.name}@${selected.version}`,
+			validateInput: (value) => this.validatePackageSpec(value, selected.name),
+		});
 
-		if (!pickedFile) {
+		if (!packageSpec) {
 			return;
 		}
 
-		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(pickedFile.file));
-		await vscode.window.showTextDocument(document);
+		const spec = this.parsePackageSpec(packageSpec);
+		await this.ensurePackageRoot();
+		await vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: `Installing ${packageSpec}`,
+				cancellable: false,
+			},
+			async () => {
+				await this.installPackageFromRegistry(packageSpec.trim(), new Set(), {
+					replaceExistingRoot: true,
+				});
+				await this.enableBundledPackage(spec.name);
+			},
+		);
+
+		await this.refreshTypeManifest();
+		await this.restartTypeScriptServer();
+		vscode.window.showInformationMessage(`Installed ${packageSpec}.`);
 	}
 
 	async deletePackage(pkg?: TypePackage) {
 		const selected = pkg ?? await this.pickPackage('Delete types package');
-		if (!selected || selected.bundled) {
-			if (selected?.bundled) {
-				vscode.window.showWarningMessage(`${selected.name} is bundled with the extension and cannot be deleted.`);
-			}
+		if (!selected) {
 			return;
 		}
 
@@ -213,8 +236,12 @@ class TypePackageManager {
 				cancellable: false,
 			},
 			async () => {
-				await fs.promises.rm(selected.location, { recursive: true, force: true });
-				await this.removeStoredDependency(selected.name);
+				if (selected.bundled) {
+					await this.disableBundledPackage(selected.name);
+				} else {
+					await fs.promises.rm(selected.location, { recursive: true, force: true });
+					await this.removeStoredDependency(selected.name);
+				}
 			},
 		);
 
@@ -288,14 +315,17 @@ class TypePackageManager {
 		return picked?.pkg;
 	}
 
-	private validatePackageSpec(value: string): string | undefined {
+	private validatePackageSpec(value: string, expectedPackageName?: string): string | undefined {
 		const trimmed = value.trim();
 		if (!trimmed) {
 			return 'Enter an npm package name.';
 		}
 
 		try {
-			this.parsePackageSpec(trimmed);
+			const spec = this.parsePackageSpec(trimmed);
+			if (expectedPackageName && spec.name.toLowerCase() !== expectedPackageName.toLowerCase()) {
+				return `Enter a version spec for ${expectedPackageName}.`;
+			}
 		} catch {
 			return 'Use an npm package name or version spec, for example @types/node@latest.';
 		}
@@ -307,7 +337,7 @@ class TypePackageManager {
 		const candidates = [
 			...await this.findBundledPackageLocations('@types/node'),
 			...await this.findBundledPackageLocations('bun-types'),
-			...await this.findBundledPackageLocations('undici-types'),
+			...await this.findBundledPackageLocations('@types/deno'),
 		];
 
 		return this.packageInfosFromLocations(candidates, true);
@@ -422,7 +452,11 @@ class TypePackageManager {
 		return files.sort((a, b) => a.localeCompare(b));
 	}
 
-	private async installPackageFromRegistry(packageSpec: string, visited: Set<string>): Promise<void> {
+	private async installPackageFromRegistry(
+		packageSpec: string,
+		visited: Set<string>,
+		options: { replaceExistingRoot?: boolean } = {},
+	): Promise<void> {
 		await this.ensurePackageRoot();
 		const spec = this.parsePackageSpec(packageSpec);
 		const manifest = await this.resolveRegistryManifest(spec);
@@ -434,9 +468,12 @@ class TypePackageManager {
 		visited.add(key);
 
 		const destination = this.packageInstallLocation(manifest.name);
-		if (fs.existsSync(destination)) {
-			this.output.appendLine(`${manifest.name} is already installed. Delete it before downloading another version.`);
-			return;
+		const replacingExistingPackage = fs.existsSync(destination);
+		if (replacingExistingPackage) {
+			if (!options.replaceExistingRoot) {
+				this.output.appendLine(`${manifest.name} is already installed. Use Change Types Package Version to install another version.`);
+				return;
+			}
 		}
 
 		const tarball = manifest.dist?.tarball;
@@ -454,6 +491,9 @@ class TypePackageManager {
 			await this.downloadFile(tarball, tarballPath);
 			await fs.promises.mkdir(extractPath, { recursive: true });
 			await tar.x({ file: tarballPath, cwd: extractPath, strip: 1 });
+			if (replacingExistingPackage) {
+				await fs.promises.rm(destination, { recursive: true, force: true });
+			}
 			await fs.promises.rename(extractPath, destination);
 			await this.recordStoredDependency(manifest.name, manifest.version);
 		} finally {
@@ -463,6 +503,39 @@ class TypePackageManager {
 		for (const [dependencyName, dependencyRange] of Object.entries(manifest.dependencies ?? {})) {
 			await this.installPackageFromRegistry(`${dependencyName}@${dependencyRange}`, visited);
 		}
+	}
+
+	private async readDisabledBundledPackageNames(): Promise<Set<string>> {
+		try {
+			const disabled = JSON.parse(await fs.promises.readFile(this.disabledBundledPackagesPath, 'utf8')) as DisabledBundledPackages;
+			return new Set((disabled.names ?? []).map((name) => name.toLowerCase()));
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+				this.output.appendLine(`Failed to read disabled bundled packages: ${String(error)}`);
+			}
+			return new Set();
+		}
+	}
+
+	private async writeDisabledBundledPackageNames(names: Set<string>) {
+		await fs.promises.mkdir(path.dirname(this.disabledBundledPackagesPath), { recursive: true });
+		const disabled: DisabledBundledPackages = {
+			version: 1,
+			names: [...names].sort((a, b) => a.localeCompare(b)),
+		};
+		await fs.promises.writeFile(this.disabledBundledPackagesPath, JSON.stringify(disabled, null, 2), 'utf8');
+	}
+
+	private async disableBundledPackage(packageName: string) {
+		const names = await this.readDisabledBundledPackageNames();
+		names.add(packageName.toLowerCase());
+		await this.writeDisabledBundledPackageNames(names);
+	}
+
+	private async enableBundledPackage(packageName: string) {
+		const names = await this.readDisabledBundledPackageNames();
+		names.delete(packageName.toLowerCase());
+		await this.writeDisabledBundledPackageNames(names);
 	}
 
 	private parsePackageSpec(packageSpec: string): PackageSpec {
