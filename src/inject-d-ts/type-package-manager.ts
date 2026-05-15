@@ -203,10 +203,20 @@ export class TypePackageManager {
 		};
 
 		try {
-			await vscode.commands.executeCommand('_typescript.configurePlugin', TSSERVER_PLUGIN_NAME, configuration);
-		} catch {
-			// The built-in TypeScript extension may not be active yet. The contributed plugin
-			// still loads, and activation will configure it again when this extension reloads.
+			const typeScriptExtension = vscode.extensions.getExtension('vscode.typescript-language-features');
+			if (typeScriptExtension?.exports === undefined) {
+				await typeScriptExtension?.activate();
+			}
+
+			const api = typeScriptExtension?.exports?.getAPI?.(0);
+			if (api?.configurePlugin) {
+				api.configurePlugin(TSSERVER_PLUGIN_NAME, configuration);
+			} else {
+				await vscode.commands.executeCommand('_typescript.configurePlugin', TSSERVER_PLUGIN_NAME, configuration);
+			}
+			this.output.appendLine(`Configured TypeScript plugin with manifest ${this.manifestPath}.`);
+		} catch (error) {
+			this.output.appendLine(`Failed to configure TypeScript plugin: ${String(error)}`);
 		}
 	}
 

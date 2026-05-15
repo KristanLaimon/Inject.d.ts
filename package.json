@@ -125,11 +125,12 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run package",
-    "compile": "pnpm run check-types && pnpm run lint && bun esbuild.js",
+    "compile": "pnpm run check-types && pnpm run lint && bun esbuild.js && pnpm run prepare-tsserver-plugin",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "bun esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "pnpm run check-types && pnpm run lint && bun esbuild.js --production",
+    "package": "pnpm run check-types && pnpm run lint && bun esbuild.js --production && pnpm run prepare-tsserver-plugin",
+    "prepare-tsserver-plugin": "node scripts/prepare-tsserver-plugin-package.mjs",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
@@ -139,7 +140,6 @@
   },
   "dependencies": {
     "@types/node": "22.x",
-    "inject-d-ts-tsserver-plugin": "file:./tsserver-plugin",
     "semver": "^7.7.3",
     "tar": "^7.5.2"
   },

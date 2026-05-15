@@ -36,7 +36,7 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --config.node-linker=hoisted
 
       - name: Prepare manifest for CI packaging
         env:
@@ -50,7 +50,7 @@ jobs:
         run: pnpm run package
 
       - name: Package VSIX
-        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --no-dependencies --out .artifacts/inject-d-ts.vsix
+        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --out .artifacts/inject-d-ts.vsix
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
@@ -87,7 +87,7 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --config.node-linker=hoisted
 
       - name: Validate publish configuration
         env:
@@ -112,12 +112,12 @@ jobs:
         run: pnpm run package
 
       - name: Package VSIX
-        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --no-dependencies --out .artifacts/inject-d-ts.vsix
+        run: mkdir -p .artifacts && pnpm dlx @vscode/vsce package --out .artifacts/inject-d-ts.vsix
 
       - name: Publish to Visual Studio Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: pnpm dlx @vscode/vsce publish --packagePath .artifacts/inject-d-ts.vsix --no-dependencies -p "$VSCE_PAT"
+        run: pnpm dlx @vscode/vsce publish --packagePath .artifacts/inject-d-ts.vsix -p "$VSCE_PAT"
 
       - name: Publish to Open VSX
         if: ${{ env.HAS_OVSX_PAT == 'true' }}

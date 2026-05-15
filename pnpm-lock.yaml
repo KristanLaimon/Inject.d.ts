@@ -11,9 +11,6 @@ importers:
       '@types/node':
         specifier: 22.x
         version: 22.19.19
-      inject-d-ts-tsserver-plugin:
-        specifier: file:./tsserver-plugin
-        version: file:tsserver-plugin
       semver:
         specifier: ^7.7.3
         version: 7.8.0
@@ -979,9 +976,6 @@ packages:
 
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
-
-  inject-d-ts-tsserver-plugin@file:tsserver-plugin:
-    resolution: {directory: tsserver-plugin, type: directory}
 
   internal-slot@1.1.0:
     resolution: {integrity: sha512-4gd7VpWNQNB4UKKCFFVcp1AVv+FMOgs9NKzjHKusc8jTMhd5eL1NqQqOpE0KzMds804/yHlglp3uxgluOqAPLw==}
@@ -2757,8 +2751,6 @@ snapshots:
   imurmurhash@0.1.4: {}
 
   inherits@2.0.4: {}
-
-  inject-d-ts-tsserver-plugin@file:tsserver-plugin: {}
 
   internal-slot@1.1.0:
     dependencies:
