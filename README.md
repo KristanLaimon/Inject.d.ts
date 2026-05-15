@@ -6,6 +6,11 @@
 
 Inject.d.ts provides global TypeScript declaration packages directly, eliminating the need to `install them separately` in each workspace/project.
 
+
+Available on:
+- [Open VSX](https://open-vsx.org/extension/KristanLaimon/inject-d-ts)
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=KristanLaimon.inject-d-ts)
+
 ## Usage
 
 1. Install and enable the extension.
