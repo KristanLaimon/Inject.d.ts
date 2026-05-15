@@ -1,6 +1,7 @@
 .vscode/**
 .vscode-test/**
 .github/**
+.pnpm-store/**
 out/**
 node_modules/**
 !node_modules/.pnpm/
