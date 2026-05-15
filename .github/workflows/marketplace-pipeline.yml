@@ -1,10 +1,9 @@
 name: Marketplace Pipeline
 
 on:
-  pull_request:
   push:
     branches:
-      - '**'
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -59,7 +58,7 @@ jobs:
 
   publish:
     needs: validate
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
