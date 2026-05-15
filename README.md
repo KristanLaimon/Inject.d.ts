@@ -1,6 +1,6 @@
 
 <div style="width: 70%; margin: 0 auto;">
-  <img src=".github/logo.png" />
+  <img style="margin: 0 auto;" src=".github/logo.png" />
   <h1 style="text-align: center; font-weight: bold;">Inject.d.ts</h1>
 </div>
 
@@ -14,7 +14,13 @@ Inject.d.ts provides global TypeScript declaration packages directly, eliminatin
 4. Run **Download Types Package** from the view title or command palette to add a package such as `@types/lodash`, `@types/express`, or `@types/bun@latest`, or anything you want to load globally!
 5. Expand a package item to read its `.d.ts` files, use **Change Types Package Version** to install a different version, or **Delete Types Package** to remove downloaded packages and hide bundled packages.
 
-![Inject.d.ts demo](https://raw.githubusercontent.com/KristanLaimon/Inject.d.ts/main/.github/demo.gif)
+<div style="overflow: hidden;">
+  <img
+    src="https://raw.githubusercontent.com/KristanLaimon/Inject.d.ts/main/.github/demo.gif"
+    alt="Inject.d.ts demo"
+    style="display: block; width: 120%; max-width: none; margin: 0 auto; transform: translateX(-8.333%);"
+  />
+</div>
 _Demo: Installing @types/bun for script usage without needing to `npm install` it and no /node_modules_
 
 ## Why?
@@ -41,4 +47,3 @@ Do we need to npm install typescript types ".d.ts" everytime we wanna use `Types
 - Downloading packages requires network access to the npm registry.
 - This is for **editor IntelliSense and type checking inside VS Code-compatible editors**. _It does not change runtime behavior_.
 - Project-local `tsconfig.json` settings can still affect how TypeScript reports conflicts between DOM, Node, Bun, and other global declarations.
-
