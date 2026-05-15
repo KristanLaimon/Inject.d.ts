@@ -39,6 +39,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Prepare manifest for CI packaging
+        env:
+          MARKETPLACE_REPOSITORY_URL: ${{ vars.MARKETPLACE_REPOSITORY_URL || format('{0}/{1}', github.server_url, github.repository) }}
         run: node scripts/prepare-marketplace-manifest.mjs --allow-placeholder-publisher
 
       - name: Run extension tests
@@ -102,7 +104,7 @@ jobs:
       - name: Prepare manifest for publish
         env:
           MARKETPLACE_PUBLISHER: ${{ secrets.MARKETPLACE_PUBLISHER }}
-          MARKETPLACE_REPOSITORY_URL: ${{ vars.MARKETPLACE_REPOSITORY_URL }}
+          MARKETPLACE_REPOSITORY_URL: ${{ vars.MARKETPLACE_REPOSITORY_URL || format('{0}/{1}', github.server_url, github.repository) }}
           MARKETPLACE_VERSION_STRATEGY: run-number
         run: node scripts/prepare-marketplace-manifest.mjs
 
