@@ -92,9 +92,13 @@ jobs:
         env:
           MARKETPLACE_PUBLISHER: ${{ secrets.MARKETPLACE_PUBLISHER }}
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
           test -n "$MARKETPLACE_PUBLISHER" || { echo "::error::Missing secret MARKETPLACE_PUBLISHER"; exit 1; }
           test -n "$VSCE_PAT" || { echo "::error::Missing secret VSCE_PAT"; exit 1; }
+          if [ -n "$OVSX_PAT" ]; then
+            echo "HAS_OVSX_PAT=true" >> "$GITHUB_ENV"
+          fi
 
       - name: Prepare manifest for publish
         env:
@@ -115,7 +119,7 @@ jobs:
         run: pnpm dlx @vscode/vsce publish --packagePath .artifacts/inject-d-ts.vsix -p "$VSCE_PAT"
 
       - name: Publish to Open VSX
-        if: ${{ secrets.OVSX_PAT != '' }}
+        if: ${{ env.HAS_OVSX_PAT == 'true' }}
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: pnpm dlx ovsx publish .artifacts/inject-d-ts.vsix -p "$OVSX_PAT"
