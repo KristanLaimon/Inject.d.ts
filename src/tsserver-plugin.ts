@@ -79,11 +79,11 @@ function injectCompilationSettings(host: LanguageServiceHost | undefined) {
 		}
 
 		const nextSettings = { ...settings };
-		if (manifestTypeRoots.length > 0) {
+		if (manifestTypeRoots.length > 0 && settings.typeRoots === undefined) {
 			const existingTypeRoots = settings.typeRoots ?? defaultTypeRoots(host.getCurrentDirectory?.());
 			nextSettings.typeRoots = unique([...existingTypeRoots, ...manifestTypeRoots]);
 		}
-		if (manifestTypes.length > 0) {
+		if (manifestTypes.length > 0 && settings.types === undefined) {
 			nextSettings.types = unique([...(settings.types ?? []), ...manifestTypes]);
 		}
 
