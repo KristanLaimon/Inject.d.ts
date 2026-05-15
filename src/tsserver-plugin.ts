@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 type LanguageServiceInfo = {
@@ -48,6 +49,16 @@ function init() {
 		create(info: LanguageServiceInfo) {
 			project = info.project;
 			configuredManifestPath = readManifestPath(info.config);
+			
+			// Log for debugging (TS Server output)
+			if (info.project) {
+				const logFile = path.join(os.tmpdir(), 'inject-d-ts-plugin.log');
+				try {
+					fs.appendFileSync(logFile, `[${new Date().toISOString()}] Creating plugin for project ${info.project.projectName || 'unknown'}\n`);
+					fs.appendFileSync(logFile, `Manifest path: ${configuredManifestPath}\n`);
+				} catch {}
+			}
+
 			injectCompilationSettings(info.languageServiceHost);
 			injectManifestFiles(info.languageServiceHost);
 			return info.languageService;
@@ -88,6 +99,10 @@ function injectCompilationSettings(host: LanguageServiceHost | undefined) {
 		// Infiltrate types
 		const existingTypes = settings.types ?? [];
 		nextSettings.types = unique([...existingTypes, ...manifestTypes]);
+
+		// If we are injecting types but the original settings didn't have types or typeRoots,
+		// we must ensure that we don't accidentally disable default lookups if we don't want to.
+		// However, for "loose" scripts, adding these should just work.
 
 		return nextSettings;
 	};

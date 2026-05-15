@@ -440,11 +440,23 @@ export class TypePackageManager {
 			return path.dirname(packageLocation);
 		}
 
+		// For non-scoped packages like bun-types, the typeRoot is the parent node_modules
+		// if the package is at .../node_modules/bun-types
+		if (packageName.startsWith('@')) {
+			return path.dirname(path.dirname(packageLocation));
+		}
+
 		return path.dirname(packageLocation);
 	}
 
 	private typeNameForPackage(packageName: string): string {
-		return packageName.startsWith('@types/') ? packageName.slice('@types/'.length) : packageName;
+		if (packageName.startsWith('@types/')) {
+			return packageName.slice('@types/'.length);
+		}
+
+		// For packages like bun-types, we should use the full name if it's not in @types
+		// as TypeScript expects the folder name in node_modules
+		return packageName;
 	}
 
 	private async packageInfosFromLocations(
